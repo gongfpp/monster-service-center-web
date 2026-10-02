@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#172332">
+  <meta name="description" content="怪物客服中心：处理投诉、制定条例，看真实地牢战斗如何改变下一天。七日可玩开发版。">
+  <title>怪物客服中心 · 网页版</title>
+  <style>
+    :root { color-scheme: dark; --ink:#172332; --edge:#405b70; --text:#d9e4e9; --muted:#9db3c2; --paper:#e8e4d9; --green:#70c7af; --blue:#78b9e1; --warm:#d8ab71; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; width:100%; height:100%; overflow:hidden; }
+    body { background:#0d1520; color:var(--text); font-family:"PingFang SC","Microsoft YaHei",sans-serif; }
+    button { font:inherit; cursor:pointer; }
+    button:focus-visible,a:focus-visible { outline:3px solid var(--blue); outline-offset:4px; }
+    button:disabled { cursor:wait; opacity:.65; }
+    #app { width:100%; height:100%; height:100dvh; display:grid; grid-template-rows:minmax(0,1fr) auto; background:radial-gradient(ellipse at center,#243244,#0d1520 75%); }
+    #stage { position:relative; min-height:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    #canvas { display:block; width:1440px; height:900px; max-width:none; background:#172332; image-rendering:pixelated; touch-action:none; }
+    #canvas:focus { outline:none; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    #cover { position:absolute; inset:0; z-index:2; display:flex; align-items:center; justify-content:center; padding:24px; overflow:auto; background:linear-gradient(180deg,rgba(13,21,32,.96),rgba(23,35,50,.96)); }
+    #cover[hidden], [hidden] { display:none !important; }
+    .desk { width:min(600px,100%); background:var(--ink); border:2px solid var(--edge); box-shadow:8px 8px 0 #080f18; }
+    .desk-head { padding:20px 30px; border-bottom:2px solid var(--edge); display:flex; align-items:center; gap:15px; }
+    .monster { width:38px; height:38px; position:relative; flex-shrink:0; background:var(--green); clip-path:polygon(16% 0,32% 0,32% 16%,68% 16%,68% 0,84% 0,84% 16%,100% 16%,100% 84%,84% 84%,84% 100%,16% 100%,16% 84%,0 84%,0 16%,16% 16%); }
+    .monster:before { content:""; position:absolute; top:15px; left:9px; width:6px; height:7px; background:var(--ink); box-shadow:14px 0 0 var(--ink); }
+    .brand { font-size:12px; color:var(--green); letter-spacing:3px; margin:0 0 6px; }
+    h1 { font-size:clamp(24px,5vw,34px); margin:0; letter-spacing:2px; color:#f0f1e9; }
+    .desk-body { padding:26px 30px 30px; }
+    .memo { background:var(--paper); border-left:5px solid var(--warm); color:#34434c; padding:17px 20px; line-height:1.8; font-size:14px; margin-bottom:25px; }
+    .memo strong { display:block; font-size:17px; color:#1b3542; margin-bottom:5px; }
+    .memo p { margin:0; }
+    .flow { display:flex; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin:0 0 24px; }
+    .flow span { border:1px solid var(--edge); padding:5px 8px; }
+    .flow b { align-self:center; color:var(--warm); font-weight:normal; }
+    .load-row { display:flex; justify-content:space-between; gap:15px; font-size:13px; margin-bottom:10px; }
+    #percent { color:var(--green); font-variant-numeric:tabular-nums; }
+    progress { display:block; appearance:none; width:100%; height:10px; border:1px solid var(--edge); background:#0d1722; margin:0 0 18px; }
+    progress::-webkit-progress-bar { background:#0d1722; }
+    progress::-webkit-progress-value { background:var(--green); }
+    progress::-moz-progress-bar { background:var(--green); }
+    #start,#retry { width:100%; min-height:49px; border:2px solid #9ce0ca; color:#112d2c; background:var(--green); font-size:16px; font-weight:600; box-shadow:0 4px 0 #304f50; }
+    #start:hover,#retry:hover { background:#9bdec9; }
+    #failure { color:#ffc5b1; font-size:14px; line-height:1.7; overflow-wrap:anywhere; white-space:pre-line; margin:0 0 18px; }
+    .note { color:var(--muted); font-size:12px; line-height:1.75; margin:16px 0 0; }
+    #storage-note[data-state="unavailable"] { color:#f0bd88; }
+    #dock { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:52px; padding:8px max(16px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); border-top:1px solid #35495c; background:#172332; z-index:3; }
+    .dock-title { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:12px; min-width:0; }
+    .version { color:var(--green); white-space:nowrap; }
+    #storage-badge { white-space:nowrap; }
+    #storage-badge[data-state="unavailable"] { color:#f0bd88; }
+    .dock-buttons { display:flex; gap:8px; flex-shrink:0; }
+    .small-btn { border:1px solid var(--edge); background:#243446; color:var(--text); padding:7px 12px; min-height:34px; font-size:12px; }
+    .small-btn:hover { border-color:var(--blue); background:#30455a; }
+    #screen-tip { display:none; position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:1; padding:6px 10px; border:1px solid #5a6571; background:#172332ed; color:#e1cba9; font-size:11px; white-space:nowrap; pointer-events:none; }
+    #toast { position:fixed; left:50%; bottom:70px; transform:translateX(-50%); z-index:6; max-width:min(560px,90vw); padding:13px 18px; background:#263d50; border:1px solid var(--blue); box-shadow:4px 4px 0 #080f18; font-size:13px; line-height:1.6; }
+    dialog { width:min(560px,calc(100% - 32px)); max-height:85dvh; background:var(--ink); color:var(--text); border:2px solid var(--edge); padding:26px; box-shadow:8px 8px 0 #080f18; }
+    dialog::backdrop { background:#080f18cc; }
+    dialog h2 { margin:0 0 20px; font-size:21px; }
+    dialog p { color:var(--muted); line-height:1.8; font-size:14px; }
+    dialog strong { color:var(--text); }
+    dialog .small-btn { width:100%; margin-top:8px; }
+    @media(max-width:850px),(max-height:600px) { #screen-tip { display:block; } .dock-title .version { display:none; } #dock { padding-left:10px; padding-right:10px; } }
+    @media(max-width:500px) { #cover { padding:14px; align-items:flex-start; } .desk { margin:auto 0; } .desk-head { padding:18px; } .desk-body { padding:20px 18px; } .memo { padding:13px; } .dock-title { font-size:10px; } .small-btn { padding:6px 9px; } #screen-tip { font-size:10px; } }
+    @media(prefers-reduced-motion:no-preference) { button { transition:background .15s,border-color .15s; } }
+  </style>
+  <link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
+<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
+
+</head>
+<body>
+  <main id="app">
+    <section id="stage" aria-label="怪物客服中心游戏">
+      <canvas id="canvas" width="1440" height="900" tabindex="0" aria-label="游戏画面，请使用鼠标和键盘操作">浏览器不支持 Canvas，请换用支持 WebGL 2 的浏览器。</canvas>
+      <div id="screen-tip">建议电脑游玩；小屏请横向使用，开启全屏</div>
+      <section id="cover" aria-label="游戏加载">
+        <div class="desk">
+          <header class="desk-head"><div class="monster" aria-hidden="true"></div><div><p class="brand">DUNGEON CUSTOMER SERVICE</p><h1>怪物客服中心</h1></div></header>
+          <div class="desk-body">
+            <div class="memo"><strong>今日值班，你来定规矩。</strong><p>勇者的投诉正在积压，怪物也有自己的难处。签下条例，观察真实战斗，再面对你亲手造成的明天。</p></div>
+            <div class="flow" aria-label="游戏流程"><span>处理工单</span><b>→</b><span>制定条例</span><b>→</b><span>观察地牢</span><b>→</b><span>运营结算</span></div>
+            <div class="load-row" role="status" aria-live="polite"><span id="load-label">正在准备值班室…</span><span id="percent">0%</span></div>
+            <progress id="progress" max="100" value="0" aria-label="游戏资源加载进度"></progress>
+            <p id="failure" role="alert" hidden></p>
+            <button id="start" disabled>正在加载…</button>
+            <button id="retry" hidden>重新加载</button>
+            <p class="note" id="storage-note">正在检查浏览器存档空间…</p>
+            <p class="note">七日可玩开发版 · 推荐电脑、鼠标与键盘<br>点击「开始值班」启用声音。F11 或右下角按钮可全屏。</p>
+          </div>
+        </div>
+      </section>
+    </section>
+    <footer id="dock">
+      <div class="dock-title"><span class="version">怪物客服中心 · 七日开发版</span><span id="storage-badge" aria-live="polite">检查存档…</span></div>
+      <div class="dock-buttons"><button class="small-btn" id="help">游玩说明</button><button class="small-btn" id="fullscreen">全屏</button></div>
+    </footer>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <div id="game-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <dialog id="instructions" aria-labelledby="help-title">
+    <h2 id="help-title">值班前，请记住这几件事</h2>
+    <p><strong>先处理工单，再签发条例。</strong>每个选择都会影响真实战斗、收入与事故。次日投诉会继续追问你的决定。</p>
+    <p><strong>推荐电脑游玩。</strong>鼠标选择工单与条例，键盘操作以游戏内提示为准。小屏请横向使用；全屏后按 Esc 退出浏览器全屏。</p>
+    <p><strong>进度留在当前浏览器。</strong>使用同一网址、同一浏览器继续。隐私模式、清理网站数据或禁用存储会使进度丢失；请在游戏设置中下载存档备份。无法持久保存时仍可游玩，并可导入、导出备份。</p>
+    <p><strong>声音由点击启用。</strong>进入后若仍无声，点击游戏画面，并检查游戏音量与浏览器标签页是否静音。</p>
+    <p id="help-storage"></p>
+    <form method="dialog"><button class="small-btn">知道了，继续值班</button></form>
+  </dialog>
+  <input type="file" id="save-file" accept=".json,application/json" hidden>
+  </main>
+  <noscript><p style="position:fixed;inset:20px;z-index:10;background:#172332;padding:30px">请启用 JavaScript，才能进入怪物客服中心。</p></noscript>
+  <script src="index.js" onerror="window.monsterEngineLoadFailed=true"></script>
+  <script>
+  (() => {
+    'use strict';
+    const config = {"args":[],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":9577424,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+    const threads = false;
+    const el = id => document.getElementById(id);
+    const canvas = el('canvas');
+    let engine, started = false, toastTimer;
+    // Public bridge: the game owns validation and all save writes.
+    window.monsterStorageState = { state: 'checking', reason: '' };
+    window.monsterSetStatus = text => { el('game-status').textContent = String(text); };
+    window.monsterShowNotice = message => {
+      el('toast').textContent = String(message);
+      el('toast').hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el('toast').hidden = true; }, 7000);
+    };
+    window.monsterPickSave = () => {
+      if (!started || typeof window.monsterImportSave !== 'function') {
+        window.monsterShowNotice('请先进入游戏，再从标题页导入备份。');
+        return;
+      }
+      el('save-file').value = '';
+      el('save-file').click();
+    };
+    el('save-file').addEventListener('change', async event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (file.size > 8 * 1024 * 1024) {
+        window.monsterShowNotice('备份文件过大，请选择游戏导出的 JSON 存档。');
+        return;
+      }
+      try {
+        const bytes = await file.arrayBuffer();
+        const raw = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        if (typeof window.monsterImportSave !== 'function') throw new Error('导入入口尚未就绪，请回到标题页重试。');
+        window.monsterImportSave(raw);
+        canvas.focus();
+      } catch (error) {
+        window.monsterShowNotice('无法读取备份：' + (error.message || String(error)));
+      }
+    });
+    function fitCanvas() {
+      const box = el('stage').getBoundingClientRect();
+      const scale = Math.min(box.width / 1440, box.height / 900);
+      canvas.style.width = Math.max(1, Math.floor(1440 * scale)) + 'px';
+      canvas.style.height = Math.max(1, Math.floor(900 * scale)) + 'px';
+    }
+    new ResizeObserver(fitCanvas).observe(el('stage'));
+    window.addEventListener('resize', fitCanvas);
+    fitCanvas();
+    el('help').addEventListener('click', () => el('instructions').showModal());
+    el('instructions').addEventListener('close', () => { if (started) canvas.focus(); });
+    el('fullscreen').addEventListener('click', () => {
+      // Request directly inside the click handler; no async work before user activation.
+      const request = document.fullscreenElement ? document.exitFullscreen() : el('app').requestFullscreen?.();
+      if (!request) { window.monsterShowNotice('此浏览器未提供全屏功能，可使用浏览器菜单或 F11。'); return; }
+      Promise.resolve(request).catch(() => window.monsterShowNotice('浏览器暂未允许全屏，请使用浏览器菜单或 F11。'));
+      if (started) canvas.focus();
+    });
+    document.addEventListener('fullscreenchange', () => {
+      el('fullscreen').textContent = document.fullscreenElement ? '退出全屏' : '全屏';
+      fitCanvas();
+    });
+    el('retry').addEventListener('click', () => window.location.reload());
+    function failure(error) {
+      console.error('Monster Web startup:', error);
+      el('cover').hidden = false;
+      el('load-label').textContent = '值班室暂时无法打开';
+      el('percent').textContent = '';
+      el('progress').hidden = true;
+      el('start').hidden = true;
+      el('retry').hidden = false;
+      el('failure').hidden = false;
+      el('failure').textContent = '启动失败。请检查网络后重试；也可换用支持 WebGL 2 的 Chrome、Edge 或 Firefox。\n' + (error.message || String(error));
+    }
+    function storageStatus(available, reason) {
+      const state = available ? 'available' : 'unavailable';
+      window.monsterStorageState = { state, reason };
+      const note = available ? '浏览器存档空间可写。建议定期下载备份；清理网站数据仍会删除进度。' : '浏览器未允许持久存档。仍可正常游玩，请在离开前下载备份，下次导入继续。';
+      el('storage-note').textContent = note;
+      el('storage-note').dataset.state = state;
+      el('storage-badge').textContent = available ? '本机存档' : '临时存档 · 请备份';
+      el('storage-badge').dataset.state = state;
+      el('help-storage').textContent = note;
+      window.dispatchEvent(new CustomEvent('monster-storage-status', { detail: window.monsterStorageState }));
+    }
+    function probeStorage() {
+      return new Promise(resolve => {
+        let database, settled = false;
+        const name = 'monster-customer-service-storage-probe';
+        const finish = (ok, reason = '') => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (database) database.close();
+          try { window.indexedDB?.deleteDatabase(name); } catch (_) { /* No player data in probe DB. */ }
+          storageStatus(ok, reason);
+          resolve(ok);
+        };
+        const timer = setTimeout(() => finish(false, 'IndexedDB probe timed out'), 3500);
+        try {
+          if (!window.indexedDB) return finish(false, 'IndexedDB unavailable');
+          const request = window.indexedDB.open(name, 1);
+          request.onerror = () => finish(false, 'IndexedDB open failed');
+          request.onblocked = () => finish(false, 'IndexedDB blocked');
+          request.onupgradeneeded = () => request.result.createObjectStore('probe');
+          request.onsuccess = () => {
+            database = request.result;
+            if (settled) { database.close(); return; }
+            try {
+              const tx = database.transaction('probe', 'readwrite');
+              const store = tx.objectStore('probe');
+              const token = 'probe-' + Date.now();
+              let verified = false;
+              store.put(token, 'value');
+              const read = store.get('value');
+              read.onsuccess = () => { verified = read.result === token; store.delete('value'); };
+              tx.oncomplete = () => finish(verified, verified ? '' : 'IndexedDB readback failed');
+              tx.onerror = tx.onabort = () => finish(false, 'IndexedDB transaction failed');
+            } catch (error) { finish(false, error.message); }
+          };
+        } catch (error) { finish(false, error.message); }
+      });
+    }
+    function progress(current, total) {
+      if (total > 0) {
+        const percent = Math.min(100, Math.floor(current / total * 100));
+        el('progress').value = percent;
+        el('percent').textContent = percent + '%';
+        el('load-label').textContent = percent === 100 ? '正在整理值班资料…' : '正在加载值班资料…';
+      } else {
+        el('progress').removeAttribute('value');
+        el('percent').textContent = '准备中';
+      }
+    }
+    async function prepare() {
+      if (window.monsterEngineLoadFailed || typeof Engine === 'undefined') throw new Error('游戏引擎文件没有加载成功。');
+      if (window.location.protocol === 'file:') throw new Error('请通过 HTTP 或 HTTPS 打开游戏，直接打开本地文件无法运行。');
+      if (!Engine.isWebGLAvailable(2)) throw new Error('当前浏览器未提供 WebGL 2，请启用硬件加速或更换浏览器。');
+      const missing = Engine.getMissingFeatures({ threads });
+      if (missing.length) throw new Error('缺少浏览器功能：' + missing.join('、'));
+      const persistent = await probeStorage();
+      // Single-threaded online build: deliberately no service worker or PWA cache.
+      config.serviceWorker = '';
+      config.canvas = canvas;
+      config.canvasResizePolicy = 0;
+      config.focusCanvas = false;
+      config.onProgress = progress;
+      if (!persistent) config.persistentPaths = [];
+      engine = new Engine(config);
+      const pack = config.mainPack || (config.executable + '.pck');
+      await Promise.all([engine.init(config.executable), engine.preloadFile(pack, pack)]);
+      el('progress').value = 100;
+      el('percent').textContent = '100%';
+      el('load-label').textContent = '值班室已就绪';
+      el('start').disabled = false;
+      el('start').textContent = '开始值班 · 启用声音';
+      el('start').addEventListener('click', () => {
+        el('start').disabled = true;
+        el('start').textContent = '正在进入值班室…';
+        // WASM and PCK are already loaded. Start from this user gesture so the
+        // browser can enable the engine's own audio context; no separate audio.
+        engine.start({ args: ['--main-pack', pack].concat(config.args || []), focusCanvas: true, onExit: code => failure(new Error('游戏已结束（' + code + '），点击重新加载可再次进入。')) })
+          .then(() => {
+            started = true;
+            el('cover').hidden = true;
+            canvas.focus();
+            fitCanvas();
+          }).catch(failure);
+      }, { once: true });
+    }
+    prepare().catch(failure);
+  })();
+  </script>
+</body>
+</html>
+

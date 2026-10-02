@@ -1,0 +1,38 @@
+name: 部署网页游戏
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: 校验发布文件
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          release = json.loads(pathlib.Path('release.json').read_text())
+          assert release['source_dirty'] is False, 'Release must come from committed source'
+          for name, expected in release['files'].items():
+              data = pathlib.Path(name).read_bytes()
+              assert len(data) == expected['bytes'], name
+              assert hashlib.sha256(data).hexdigest() == expected['sha256'], name
+          print('Published files match release receipt')
+          PY
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+      - uses: actions/deploy-pages@v4
+        id: deployment

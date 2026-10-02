@@ -1,0 +1,76 @@
+{
+  "version": "1.2.1-web",
+  "source_commit": "b401f4166d7fd0b06155b939826684fab0060d9b",
+  "source_dirty": false,
+  "engine": "4.7.2.stable.official.ed1daf0bf",
+  "files": {
+    ".nojekyll": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "README.md": {
+      "bytes": 1377,
+      "sha256": "484d8a7c2f860810591dac2514f58fadaf013907a654a9c231ab7732599cf4fe"
+    },
+    "index.apple-touch-icon.png": {
+      "bytes": 3895,
+      "sha256": "24992aaf1a8b9667696ab590894bb6a231c27b77655c69d4318a52fe3644353a"
+    },
+    "index.apple-touch-icon.png.import": {
+      "bytes": 980,
+      "sha256": "5655325dcd34b86a1290c075a46fd35b4c1c006fc58e93db3d3fd039437a23d6"
+    },
+    "index.audio.position.worklet.js": {
+      "bytes": 2973,
+      "sha256": "be33985bc7160d6bf9646f259cd86b259cd67b02ccb297ee5c44f8ac84327bc8"
+    },
+    "index.audio.worklet.js": {
+      "bytes": 7298,
+      "sha256": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3"
+    },
+    "index.html": {
+      "bytes": 19832,
+      "sha256": "a6472ee90fe2601d962685d00d5ba3c17f4e2b3f61d9ae10246550794e9b10ad"
+    },
+    "index.icon.png": {
+      "bytes": 4134,
+      "sha256": "a9bacabe42bb125cc8d26a06582131590898e830bb4f8d05a47d412b57e325f5"
+    },
+    "index.icon.png.import": {
+      "bytes": 943,
+      "sha256": "f5b387acea4cff47510c71c53240a1ce7ec215c212b2614175e45d3fad6ea851"
+    },
+    "index.js": {
+      "bytes": 279815,
+      "sha256": "33c94cb3175f3333b82e2a3be5e8e86f77986f0aa2042b1631f6367a4e5bb6ba"
+    },
+    "index.pck": {
+      "bytes": 9577424,
+      "sha256": "dfc65b086a3d3999921c8832fa84230fbb81b11d29f8050d7a48cb216d8c6c85"
+    },
+    "index.png": {
+      "bytes": 21443,
+      "sha256": "3cb4495c0b98dfbe4b663cbf2b6836473572339beb66d902367893162a70be0e"
+    },
+    "index.png.import": {
+      "bytes": 928,
+      "sha256": "dbc75c7f26d35f4797365c1adec810e918a69239b601964eb92ea86885ff9065"
+    },
+    "index.wasm": {
+      "bytes": 39514754,
+      "sha256": "fc74679e3b97f76878947fcd4fbe1268cbfa6188182a2e33bbc3f5dc9bfa57d0"
+    },
+    "licenses/GODOT.txt": {
+      "bytes": 1149,
+      "sha256": "b0435e3b3e4e55238f05f4b306f30524a1b2e20147810d436eaa554fa6855c80"
+    },
+    "licenses/NOTO-OFL.txt": {
+      "bytes": 4301,
+      "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2"
+    },
+    "licenses/THIRD_PARTY.txt": {
+      "bytes": 109807,
+      "sha256": "02208622c752847682fd19c85837cc5fa3869ee3ae91ad5c5367d1baabf59e29"
+    }
+  }
+}
