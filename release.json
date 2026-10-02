@@ -1,6 +1,6 @@
 {
   "version": "1.2.1-web",
-  "source_commit": "fac4b45eae04be3f3baec2937fbccbd0b7b2b30c",
+  "source_commit": "46a727f65fe9864a597bf0c7582116e6409312f1",
   "source_dirty": false,
   "engine": "4.7.2.stable.official.ed1daf0bf",
   "files": {
@@ -29,8 +29,8 @@
       "sha256": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3"
     },
     "index.html": {
-      "bytes": 23300,
-      "sha256": "2b9ea8077603040cbc237f8a189f36938267b83dd3eac650a58feaa983257a81"
+      "bytes": 34161,
+      "sha256": "06475fc1b57bab94c44bd80f6b6e0a672a049b1f0164967dfccfc51f705b3c8e"
     },
     "index.icon.png": {
       "bytes": 4134,

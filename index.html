@@ -50,6 +50,7 @@
     .version { color:var(--green); white-space:nowrap; }
     #storage-badge { white-space:nowrap; }
     #storage-badge[data-state="unavailable"] { color:#f0bd88; }
+    #qa-badge { color:#f0bd88; }
     .dock-buttons { display:flex; gap:8px; flex-shrink:0; }
     .small-btn { border:1px solid var(--edge); background:#243446; color:var(--text); padding:7px 12px; min-height:34px; font-size:12px; }
     .small-btn:hover { border-color:var(--blue); background:#30455a; }
@@ -92,7 +93,7 @@
       </section>
     </section>
     <footer id="dock">
-      <div class="dock-title"><span class="version">怪物客服中心 · 七日开发版</span><span id="storage-badge" aria-live="polite">检查存档…</span></div>
+      <div class="dock-title"><span class="version">怪物客服中心 · 七日开发版</span><span id="qa-badge" hidden>隔离测试存档</span><span id="storage-badge" aria-live="polite">检查存档…</span></div>
       <div class="dock-buttons"><button class="small-btn" id="help">游玩说明</button><button class="small-btn" id="fullscreen">全屏</button></div>
     </footer>
   <div id="toast" role="status" aria-live="polite" hidden></div>
@@ -117,7 +118,17 @@
     const threads = false;
     const el = id => document.getElementById(id);
     const canvas = el('canvas');
+    const qaManual = new URLSearchParams(window.location.search).get('qa') === 'manual';
+    const userArgs = (config.args || []).slice();
+    if (qaManual) {
+      if (!userArgs.includes('--')) userArgs.push('--');
+      userArgs.push('--qa-manual', '--title', '--with-audio', '--interactive-qa');
+      el('qa-badge').hidden = false;
+    }
     let engine, started = false, startupFailed = false, toastTimer;
+    const LOAD_IDLE_MS = 120000;
+    let loadWatchActive = false, loadIdleTimer, lastProgressBytes = 0;
+    let cancelResourceLoads = () => {};
     // Public bridge: the game owns validation and all save writes.
     window.monsterStorageState = { state: 'checking', reason: '' };
     window.monsterSetStatus = text => { el('game-status').textContent = String(text); };
@@ -177,6 +188,8 @@
     el('retry').addEventListener('click', () => window.location.reload());
     function failure(error) {
       startupFailed = true;
+      stopLoadWatch();
+      cancelResourceLoads();
       console.error('Monster Web startup:', error);
       el('cover').hidden = false;
       el('load-label').textContent = '值班室暂时无法打开';
@@ -236,8 +249,42 @@
         } catch (error) { finish(false, error.message); }
       });
     }
+    function stopLoadWatch() {
+      loadWatchActive = false;
+      clearTimeout(loadIdleTimer);
+      loadIdleTimer = undefined;
+    }
+    function armLoadWatch() {
+      clearTimeout(loadIdleTimer);
+      loadIdleTimer = undefined;
+      if (!loadWatchActive || startupFailed || document.hidden) return;
+      loadIdleTimer = setTimeout(() => {
+        loadIdleTimer = undefined;
+        if (!loadWatchActive || startupFailed || document.hidden) return;
+        failure(new Error('网络资源加载已连续 120 秒没有新进展。请检查网络后点击「重新加载」。'));
+      }, LOAD_IDLE_MS);
+    }
+    function startLoadWatch() {
+      lastProgressBytes = 0;
+      loadWatchActive = true;
+      armLoadWatch();
+    }
+    function networkProgress(bytes) {
+      // A range can be receiving bytes before its complete, validated block is
+      // passed to Godot. Count only real nonempty reads, never polling ticks.
+      if (bytes > 0 && loadWatchActive && !startupFailed) armLoadWatch();
+    }
+    document.addEventListener('visibilitychange', () => {
+      // Hidden tabs pause the idle deadline. Returning to this page starts a
+      // fresh visible interval, without pretending duplicate bytes advanced.
+      if (loadWatchActive) armLoadWatch();
+    });
     function progress(current, total) {
-      if (startupFailed) return;
+      if (startupFailed || !loadWatchActive) return;
+      if (Number.isFinite(current) && current > lastProgressBytes) {
+        lastProgressBytes = current;
+        armLoadWatch();
+      }
       if (total > 0) {
         const percent = Math.min(100, Math.floor(current / total * 100));
         el('progress').value = percent;
@@ -249,23 +296,192 @@
       }
     }
     function installCompressedWasmFetch() {
-      if (typeof window.DecompressionStream !== 'function') return;
       const wasmURL = new URL(config.executable + '.wasm', window.location.href);
-      if (wasmURL.origin !== window.location.origin) return;
+      const packURL = new URL(config.mainPack || (config.executable + '.pck'), window.location.href);
       const nativeFetch = window.fetch.bind(window);
       const originalSize = config.fileSizes?.[config.executable + '.wasm'];
+      const RANGE_BYTES = 128 * 1024, RANGE_CONCURRENCY = 3;
+      const RANGE_TIMEOUT_MS = 90000, RANGE_RETRIES = 3;
+      const sessions = new Set();
+      cancelResourceLoads = () => {
+        for (const controller of sessions) controller.abort(new Error('启动加载已中止，请重新加载。'));
+      };
+      function rangeError(message) {
+        const error = new Error(message);
+        error.monsterRangeFatal = true;
+        return error;
+      }
+      async function fetchWithRanges(request) {
+        if (typeof AbortController !== 'function') return nativeFetch(request);
+        const session = new AbortController();
+        const pending = new Map();
+        let streamController;
+        const abort = () => session.abort(request.signal.reason || new DOMException('资源加载已取消。', 'AbortError'));
+        const cleanup = () => {
+          sessions.delete(session);
+          request.signal.removeEventListener('abort', abort);
+        };
+        sessions.add(session);
+        request.signal.addEventListener('abort', abort, { once: true });
+        session.signal.addEventListener('abort', () => {
+          pending.clear();
+          if (streamController) streamController.error(session.signal.reason);
+          cleanup();
+        }, { once: true });
+        if (request.signal.aborted) abort();
+        async function timedRequest(target, timeout, consume) {
+          if (session.signal.aborted) throw session.signal.reason;
+          const controller = new AbortController();
+          let rejectAbort;
+          const aborted = new Promise((_, reject) => { rejectAbort = reject; });
+          const cancel = () => {
+            controller.abort(session.signal.reason);
+            rejectAbort(session.signal.reason);
+          };
+          session.signal.addEventListener('abort', cancel, { once: true });
+          const timer = setTimeout(() => {
+            const error = new DOMException('资源分段请求超时。', 'TimeoutError');
+            controller.abort(error);
+            rejectAbort(error);
+          }, timeout);
+          try {
+            return await Promise.race([
+              nativeFetch(new Request(target, { signal: controller.signal })).then(consume), aborted,
+            ]);
+          } finally {
+            clearTimeout(timer);
+            session.signal.removeEventListener('abort', cancel);
+          }
+        }
+        let head;
+        try {
+          head = await timedRequest(new Request(request, { method: 'HEAD' }), 15000, response => response);
+        } catch (error) {
+          cleanup();
+          if (session.signal.aborted) throw session.signal.reason;
+          return nativeFetch(request);
+        }
+        const sizeText = head.headers.get('Content-Length') || '';
+        const size = Number(sizeText);
+        const etag = head.headers.get('ETag') || '';
+        if (!head.ok || head.headers.get('Accept-Ranges')?.toLowerCase() !== 'bytes' ||
+            !/^\d+$/.test(sizeText) || !Number.isSafeInteger(size) || size <= 0 ||
+            !/^"[^\"]+"$/.test(etag) || head.headers.get('Content-Encoding')) {
+          cleanup();
+          return nativeFetch(request);
+        }
+        async function fetchBlock(index) {
+          const start = index * RANGE_BYTES, end = Math.min(size - 1, start + RANGE_BYTES - 1);
+          const headers = new Headers(request.headers);
+          headers.set('Range', 'bytes=' + start + '-' + end);
+          headers.set('If-Range', etag);
+          for (let attempt = 0; attempt <= RANGE_RETRIES; attempt++) {
+            try {
+              return await timedRequest(new Request(request, { headers }), RANGE_TIMEOUT_MS, async response => {
+                if (response.status === 200 && index === 0) {
+                  if (response.body) response.body.cancel().catch(() => {});
+                  if (response.headers.get('ETag') !== etag) throw rangeError('资源版本已改变，请重新加载。');
+                  return null; // HEAD advertised ranges, but GET ignored them.
+                }
+                if (response.status >= 500 || response.status === 429) {
+                  if (response.body) response.body.cancel().catch(() => {});
+                  throw new Error('分段请求暂时失败（HTTP ' + response.status + '）。');
+                }
+                const range = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(response.headers.get('Content-Range') || '');
+                if (response.status !== 206 || !range || Number(range[1]) !== start ||
+                    Number(range[2]) !== end || Number(range[3]) !== size ||
+                    response.headers.get('ETag') !== etag || response.headers.get('Content-Encoding')) {
+                  if (response.body) response.body.cancel().catch(() => {});
+                  throw rangeError('资源分段或版本校验失败，请重新加载。');
+                }
+                const length = response.headers.get('Content-Length');
+                if (length !== null && Number(length) !== end - start + 1) {
+                  if (response.body) response.body.cancel().catch(() => {});
+                  throw rangeError('资源分段长度不一致，请重新加载。');
+                }
+                if (!response.body) throw new Error('资源分段没有响应内容。');
+                const bytes = new Uint8Array(end - start + 1);
+                const reader = response.body.getReader();
+                let received = 0;
+                while (true) {
+                  const chunk = await reader.read();
+                  if (chunk.done) break;
+                  if (!chunk.value?.byteLength) continue;
+                  if (received + chunk.value.byteLength > bytes.byteLength) {
+                    reader.cancel().catch(() => {});
+                    throw rangeError('资源分段超出声明长度，请重新加载。');
+                  }
+                  bytes.set(chunk.value, received);
+                  received += chunk.value.byteLength;
+                  networkProgress(chunk.value.byteLength);
+                }
+                if (received !== bytes.byteLength) throw new Error('资源分段未完整下载。');
+                return bytes;
+              });
+            } catch (error) {
+              if (session.signal.aborted) throw session.signal.reason;
+              if (error.monsterRangeFatal) throw error;
+              if (attempt === RANGE_RETRIES) throw rangeError('资源分段连续下载失败，请检查网络后重新加载。');
+            }
+          }
+        }
+        let first;
+        try { first = await fetchBlock(0); }
+        catch (error) { session.abort(error); throw error; }
+        if (first === null) {
+          cleanup();
+          return nativeFetch(request);
+        }
+        const blockCount = Math.ceil(size / RANGE_BYTES);
+        let expected = 0, next = 1;
+        function fillWindow() {
+          while (!session.signal.aborted && pending.size < RANGE_CONCURRENCY && next < blockCount) {
+            const index = next++;
+            const task = fetchBlock(index);
+            // Out-of-order failures must be observed immediately and cancel
+            // siblings, even while an earlier block is still being consumed.
+            task.catch(error => { session.abort(error); });
+            pending.set(index, task);
+          }
+        }
+        fillWindow();
+        const headers = new Headers(head.headers);
+        headers.set('Content-Length', String(size));
+        headers.delete('Content-Range');
+        const body = new ReadableStream({
+          start(controller) { streamController = controller; },
+          async pull(controller) {
+            try {
+              if (session.signal.aborted) throw session.signal.reason;
+              const bytes = expected === 0 ? first : await pending.get(expected);
+              if (session.signal.aborted) throw session.signal.reason;
+              first = null;
+              pending.delete(expected++);
+              controller.enqueue(bytes);
+              fillWindow();
+              if (expected === blockCount) { controller.close(); cleanup(); }
+            } catch (error) { session.abort(error); }
+          },
+          cancel(reason) { session.abort(reason || new DOMException('资源加载已取消。', 'AbortError')); },
+        });
+        return new Response(body, { headers });
+      }
       window.fetch = async (input, init) => {
         let url;
         try {
           url = new URL(input instanceof Request ? input.url : String(input), window.location.href);
         } catch (_) { return nativeFetch(input, init); }
-        if (url.origin !== wasmURL.origin || url.pathname !== wasmURL.pathname) return nativeFetch(input, init);
+        const isWasm = url.origin === window.location.origin && url.pathname === wasmURL.pathname && url.origin === wasmURL.origin;
+        const isPack = url.origin === window.location.origin && url.pathname === packURL.pathname && url.origin === packURL.origin;
+        if (!isWasm && !isPack) return nativeFetch(input, init);
         const method = init?.method || (input instanceof Request ? input.method : 'GET');
         if (String(method).toUpperCase() !== 'GET') return nativeFetch(input, init);
         const request = input instanceof Request ? new Request(input, init) : new Request(url.href, init);
         // Raw byte ranges and integrity hashes refer to the original WASM. Keep
         // those requests native rather than changing their transfer semantics.
         if (request.integrity || request.headers.has('Range') || request.headers.has('If-Range')) return nativeFetch(input, init);
+        if (isPack) return fetchWithRanges(request);
+        if (typeof window.DecompressionStream !== 'function') return nativeFetch(input, init);
         let decoder;
         try { decoder = new window.DecompressionStream('gzip'); }
         catch (_) { return nativeFetch(input, init); }
@@ -276,9 +492,9 @@
           // Request as RequestInit preserves headers, credentials, cache,
           // redirect, referrer policy and AbortSignal; use the captured fetch
           // to avoid recursion. Keep the original query string on the .gz URL.
-          response = await nativeFetch(new Request(compressedURL.href, request));
+          response = await fetchWithRanges(new Request(compressedURL.href, request));
         } catch (error) {
-          if (request.signal.aborted) throw error;
+          if (request.signal.aborted || startupFailed || error.monsterRangeFatal) throw error;
           return nativeFetch(input, init);
         }
         if (!response.ok || !response.body) {
@@ -321,19 +537,22 @@
       installCompressedWasmFetch();
       engine = new Engine(config);
       const pack = config.mainPack || (config.executable + '.pck');
+      startLoadWatch();
       await Promise.all([engine.init(config.executable), engine.preloadFile(pack, pack)]);
       if (startupFailed) return;
+      stopLoadWatch();
       el('progress').value = 100;
       el('percent').textContent = '100%';
       el('load-label').textContent = '值班室已就绪';
       el('start').disabled = false;
       el('start').textContent = '开始值班 · 启用声音';
       el('start').addEventListener('click', () => {
+        stopLoadWatch();
         el('start').disabled = true;
         el('start').textContent = '正在进入值班室…';
         // WASM and PCK are already loaded. Start from this user gesture so the
         // browser can enable the engine's own audio context; no separate audio.
-        engine.start({ args: ['--main-pack', pack].concat(config.args || []), focusCanvas: true, onExit: code => failure(new Error('游戏已结束（' + code + '），点击重新加载可再次进入。')) })
+        engine.start({ args: ['--main-pack', pack].concat(userArgs), focusCanvas: true, onExit: code => failure(new Error('游戏已结束（' + code + '），点击重新加载可再次进入。')) })
           .then(() => {
             if (startupFailed) return;
             started = true;
