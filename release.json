@@ -1,6 +1,6 @@
 {
   "version": "1.2.1-web",
-  "source_commit": "b401f4166d7fd0b06155b939826684fab0060d9b",
+  "source_commit": "fac4b45eae04be3f3baec2937fbccbd0b7b2b30c",
   "source_dirty": false,
   "engine": "4.7.2.stable.official.ed1daf0bf",
   "files": {
@@ -29,8 +29,8 @@
       "sha256": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3"
     },
     "index.html": {
-      "bytes": 19832,
-      "sha256": "a6472ee90fe2601d962685d00d5ba3c17f4e2b3f61d9ae10246550794e9b10ad"
+      "bytes": 23300,
+      "sha256": "2b9ea8077603040cbc237f8a189f36938267b83dd3eac650a58feaa983257a81"
     },
     "index.icon.png": {
       "bytes": 4134,
@@ -59,6 +59,10 @@
     "index.wasm": {
       "bytes": 39514754,
       "sha256": "fc74679e3b97f76878947fcd4fbe1268cbfa6188182a2e33bbc3f5dc9bfa57d0"
+    },
+    "index.wasm.gz": {
+      "bytes": 10054758,
+      "sha256": "2862a06f11ad1579c4ceb764f724013c1e62f8916d5d8d237fe5ee209c76f56e"
     },
     "licenses/GODOT.txt": {
       "bytes": 1149,

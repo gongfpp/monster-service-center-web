@@ -117,7 +117,7 @@
     const threads = false;
     const el = id => document.getElementById(id);
     const canvas = el('canvas');
-    let engine, started = false, toastTimer;
+    let engine, started = false, startupFailed = false, toastTimer;
     // Public bridge: the game owns validation and all save writes.
     window.monsterStorageState = { state: 'checking', reason: '' };
     window.monsterSetStatus = text => { el('game-status').textContent = String(text); };
@@ -176,6 +176,7 @@
     });
     el('retry').addEventListener('click', () => window.location.reload());
     function failure(error) {
+      startupFailed = true;
       console.error('Monster Web startup:', error);
       el('cover').hidden = false;
       el('load-label').textContent = '值班室暂时无法打开';
@@ -236,6 +237,7 @@
       });
     }
     function progress(current, total) {
+      if (startupFailed) return;
       if (total > 0) {
         const percent = Math.min(100, Math.floor(current / total * 100));
         el('progress').value = percent;
@@ -246,6 +248,62 @@
         el('percent').textContent = '准备中';
       }
     }
+    function installCompressedWasmFetch() {
+      if (typeof window.DecompressionStream !== 'function') return;
+      const wasmURL = new URL(config.executable + '.wasm', window.location.href);
+      if (wasmURL.origin !== window.location.origin) return;
+      const nativeFetch = window.fetch.bind(window);
+      const originalSize = config.fileSizes?.[config.executable + '.wasm'];
+      window.fetch = async (input, init) => {
+        let url;
+        try {
+          url = new URL(input instanceof Request ? input.url : String(input), window.location.href);
+        } catch (_) { return nativeFetch(input, init); }
+        if (url.origin !== wasmURL.origin || url.pathname !== wasmURL.pathname) return nativeFetch(input, init);
+        const method = init?.method || (input instanceof Request ? input.method : 'GET');
+        if (String(method).toUpperCase() !== 'GET') return nativeFetch(input, init);
+        const request = input instanceof Request ? new Request(input, init) : new Request(url.href, init);
+        // Raw byte ranges and integrity hashes refer to the original WASM. Keep
+        // those requests native rather than changing their transfer semantics.
+        if (request.integrity || request.headers.has('Range') || request.headers.has('If-Range')) return nativeFetch(input, init);
+        let decoder;
+        try { decoder = new window.DecompressionStream('gzip'); }
+        catch (_) { return nativeFetch(input, init); }
+        const compressedURL = new URL(url.href);
+        compressedURL.pathname += '.gz';
+        let response;
+        try {
+          // Request as RequestInit preserves headers, credentials, cache,
+          // redirect, referrer policy and AbortSignal; use the captured fetch
+          // to avoid recursion. Keep the original query string on the .gz URL.
+          response = await nativeFetch(new Request(compressedURL.href, request));
+        } catch (error) {
+          if (request.signal.aborted) throw error;
+          return nativeFetch(input, init);
+        }
+        if (!response.ok || !response.body) {
+          if (response.body) response.body.cancel().catch(() => {});
+          return nativeFetch(input, init);
+        }
+        const headers = new Headers(response.headers);
+        headers.set('Content-Type', 'application/wasm');
+        headers.delete('Content-Encoding');
+        headers.delete('Content-Range');
+        headers.delete('Accept-Ranges');
+        if (Number.isFinite(originalSize) && originalSize > 0) headers.set('Content-Length', String(originalSize));
+        else headers.delete('Content-Length');
+        // Godot's existing preloader counts these decompressed chunks against
+        // unchanged config.fileSizes. No full ArrayBuffer or extra cache here.
+        return new Response(response.body.pipeThrough(decoder), {
+          status: response.status, statusText: response.statusText, headers,
+        });
+      };
+    }
+    // The 4.7.2 preloader leaves rejected stream reads unhandled. Surface a
+    // failed gzip stream through the same startup notice instead of stalling.
+    window.addEventListener('unhandledrejection', event => {
+      if (engine && !started && !startupFailed) failure(event.reason || new Error('游戏资源读取失败，请重新加载。'));
+    });
     async function prepare() {
       if (window.monsterEngineLoadFailed || typeof Engine === 'undefined') throw new Error('游戏引擎文件没有加载成功。');
       if (window.location.protocol === 'file:') throw new Error('请通过 HTTP 或 HTTPS 打开游戏，直接打开本地文件无法运行。');
@@ -260,9 +318,11 @@
       config.focusCanvas = false;
       config.onProgress = progress;
       if (!persistent) config.persistentPaths = [];
+      installCompressedWasmFetch();
       engine = new Engine(config);
       const pack = config.mainPack || (config.executable + '.pck');
       await Promise.all([engine.init(config.executable), engine.preloadFile(pack, pack)]);
+      if (startupFailed) return;
       el('progress').value = 100;
       el('percent').textContent = '100%';
       el('load-label').textContent = '值班室已就绪';
@@ -275,6 +335,7 @@
         // browser can enable the engine's own audio context; no separate audio.
         engine.start({ args: ['--main-pack', pack].concat(config.args || []), focusCanvas: true, onExit: code => failure(new Error('游戏已结束（' + code + '），点击重新加载可再次进入。')) })
           .then(() => {
+            if (startupFailed) return;
             started = true;
             el('cover').hidden = true;
             canvas.focus();
