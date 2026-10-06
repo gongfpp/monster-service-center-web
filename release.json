@@ -1,6 +1,6 @@
 {
   "version": "1.2.1-web",
-  "source_commit": "46a727f65fe9864a597bf0c7582116e6409312f1",
+  "source_commit": "24d1120f1e3d256b65af4f022f7a32ca53ca5cf9",
   "source_dirty": false,
   "engine": "4.7.2.stable.official.ed1daf0bf",
   "files": {
@@ -16,10 +16,6 @@
       "bytes": 3895,
       "sha256": "24992aaf1a8b9667696ab590894bb6a231c27b77655c69d4318a52fe3644353a"
     },
-    "index.apple-touch-icon.png.import": {
-      "bytes": 980,
-      "sha256": "5655325dcd34b86a1290c075a46fd35b4c1c006fc58e93db3d3fd039437a23d6"
-    },
     "index.audio.position.worklet.js": {
       "bytes": 2973,
       "sha256": "be33985bc7160d6bf9646f259cd86b259cd67b02ccb297ee5c44f8ac84327bc8"
@@ -30,31 +26,23 @@
     },
     "index.html": {
       "bytes": 34161,
-      "sha256": "06475fc1b57bab94c44bd80f6b6e0a672a049b1f0164967dfccfc51f705b3c8e"
+      "sha256": "ee553d1bce943382dba1b41e911712f690f07f38e3920313a2a061f0dceec495"
     },
     "index.icon.png": {
       "bytes": 4134,
       "sha256": "a9bacabe42bb125cc8d26a06582131590898e830bb4f8d05a47d412b57e325f5"
-    },
-    "index.icon.png.import": {
-      "bytes": 943,
-      "sha256": "f5b387acea4cff47510c71c53240a1ce7ec215c212b2614175e45d3fad6ea851"
     },
     "index.js": {
       "bytes": 279815,
       "sha256": "33c94cb3175f3333b82e2a3be5e8e86f77986f0aa2042b1631f6367a4e5bb6ba"
     },
     "index.pck": {
-      "bytes": 9577424,
-      "sha256": "dfc65b086a3d3999921c8832fa84230fbb81b11d29f8050d7a48cb216d8c6c85"
+      "bytes": 9578704,
+      "sha256": "fd5ba0550475e245898dd3adb28494f152f4ed3970548781f62438e98ff83c3d"
     },
     "index.png": {
       "bytes": 21443,
       "sha256": "3cb4495c0b98dfbe4b663cbf2b6836473572339beb66d902367893162a70be0e"
-    },
-    "index.png.import": {
-      "bytes": 928,
-      "sha256": "dbc75c7f26d35f4797365c1adec810e918a69239b601964eb92ea86885ff9065"
     },
     "index.wasm": {
       "bytes": 39514754,
@@ -62,7 +50,7 @@
     },
     "index.wasm.gz": {
       "bytes": 10054758,
-      "sha256": "2862a06f11ad1579c4ceb764f724013c1e62f8916d5d8d237fe5ee209c76f56e"
+      "sha256": "8032306d52d52497129dce5b767baacb660d504bdde28668b1c1337b717eacd8"
     },
     "licenses/GODOT.txt": {
       "bytes": 1149,
