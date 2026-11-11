@@ -25,8 +25,8 @@
       "sha256": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3"
     },
     "index.html": {
-      "bytes": 38976,
-      "sha256": "dea5f2f27dbd82f743471d45f26b1175248e74237c329713a67fef8167752565"
+      "bytes": 51110,
+      "sha256": "fd15ac0ea15c11cf5ce6234cf35c2b90f1935e74d30e89e4384c6e8dd92361c8"
     },
     "index.icon.png": {
       "bytes": 4134,
@@ -70,5 +70,13 @@
     "client_sha256": "a91e0568629bfa4b0818398965f3dab4e7239dc7cedae61882c1c4435934cf57",
     "base_runtime_unchanged": true,
     "source_commit": "aa6d1ebd51d5504c72fee00710670bc50d10ac4c"
+  },
+  "web_page_events": {
+    "site": "monster-service-center",
+    "client_sha256": "fc1953ec845b25ba5017fd3889c2426b2e3b4c6f87fbe9cb40eb8e69819009af",
+    "source_commit": "4d028ad3bf6fe1b08bfb874908b5a1b44a1dee66",
+    "base_runtime_unchanged": true,
+    "channel": "github-pages",
+    "scope": "outer-page-only"
   }
 }
