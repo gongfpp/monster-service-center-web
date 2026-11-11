@@ -25,8 +25,8 @@
       "sha256": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3"
     },
     "index.html": {
-      "bytes": 37121,
-      "sha256": "1dbf9e123294999bfaddec3394cb339c4fcdbe192d5814c5210299818e8de8d0"
+      "bytes": 38976,
+      "sha256": "dea5f2f27dbd82f743471d45f26b1175248e74237c329713a67fef8167752565"
     },
     "index.icon.png": {
       "bytes": 4134,
@@ -67,8 +67,8 @@
   },
   "visitor_footer": {
     "site": "monster-service-center",
-    "client_sha256": "fa91d3d6a17d006a660c5d32ece8828ea74717ca03d6c291b675518e7fb44021",
+    "client_sha256": "a91e0568629bfa4b0818398965f3dab4e7239dc7cedae61882c1c4435934cf57",
     "base_runtime_unchanged": true,
-    "source_commit": "0a2ebddcc5b701d90d336c41ba4b12a13a189d6c"
+    "source_commit": "aa6d1ebd51d5504c72fee00710670bc50d10ac4c"
   }
 }
